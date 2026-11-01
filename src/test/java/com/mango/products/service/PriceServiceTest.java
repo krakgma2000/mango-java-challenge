@@ -26,10 +26,7 @@ import com.mango.products.repository.PriceRepository;
 import com.mango.products.repository.ProductRepository;
 import com.mango.products.vo.PriceVO;
 
-/**
- * The order of the steps, with mocks. That the lock and the EXCLUDE really work is something only a
- * test against PostgreSQL can show: that is for the integration tests.
- */
+
 @ExtendWith(MockitoExtension.class)
 class PriceServiceTest {
 
