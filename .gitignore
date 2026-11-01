@@ -1,1 +1,6 @@
 mango-java-challenge.zip
+.gradle/
+build/
+.idea/
+.vscode/
+*.iml
