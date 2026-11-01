@@ -23,4 +23,13 @@ public class ProductRepository {
         productEntity.setId(generatedId);
         return productEntity;
     }
+
+    //Locks and returns true if the product exists
+    public boolean lockById(Long id) {
+        return jdbcClient.sql("SELECT id FROM products WHERE id = :id FOR UPDATE")
+                .param("id", id)
+                .query(Long.class)
+                .optional()
+                .isPresent();
+    }
 }

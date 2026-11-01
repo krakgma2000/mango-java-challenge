@@ -1,7 +1,6 @@
 package com.mango.products.business;
 
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.mango.products.domain.CreateProductRequestDTO;
 import com.mango.products.domain.ProductResponseDTO;
@@ -12,13 +11,16 @@ import com.mango.products.vo.ProductVO;
 
 @Component
 public class ProductBusiness {
+
+    static final int NAME_MAX_LENGTH = 255;
+    static final int DESCRIPTION_MAX_LENGTH = 1000;
+
     private final ProductService productService;
 
     public ProductBusiness(ProductService productService) {
         this.productService = productService;
     }
 
-    @Transactional
     public ProductResponseDTO createProduct(CreateProductRequestDTO request) {
         validateRequest(request);
 
@@ -29,5 +31,9 @@ public class ProductBusiness {
 
     private void validateRequest(CreateProductRequestDTO request) {
         Validator.requireNotBlank(request.getName(), "name");
+        Validator.requireMaxLength(request.getName(), NAME_MAX_LENGTH, "name");
+        Validator.requireNoNullCharacter(request.getName(), "name");
+        Validator.requireMaxLength(request.getDescription(), DESCRIPTION_MAX_LENGTH, "description");
+        Validator.requireNoNullCharacter(request.getDescription(), "description");
     }
 }

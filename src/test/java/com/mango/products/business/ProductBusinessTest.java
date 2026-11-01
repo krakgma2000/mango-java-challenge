@@ -75,4 +75,31 @@ class ProductBusinessTest {
         assertThatThrownBy(() -> productBusiness.createProduct(request)).isInstanceOf(ValidationException.class);
         verify(productService, never()).createProduct(any());
     }
+
+    @Test
+    void rejectsANameWithTheNulCharacter() {
+        CreateProductRequestDTO request = new CreateProductRequestDTO("a\u0000b", null);
+
+        assertThatThrownBy(() -> productBusiness.createProduct(request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("name cannot contain the NUL character");
+        verify(productService, never()).createProduct(any());
+    }
+
+    @Test
+    void rejectsANameLongerThanTheLimit() {
+        CreateProductRequestDTO request = new CreateProductRequestDTO("x".repeat(ProductBusiness.NAME_MAX_LENGTH + 1), null);
+
+        assertThatThrownBy(() -> productBusiness.createProduct(request)).isInstanceOf(ValidationException.class);
+        verify(productService, never()).createProduct(any());
+    }
+
+    @Test
+    void rejectsADescriptionLongerThanTheLimit() {
+        CreateProductRequestDTO request = new CreateProductRequestDTO("Sports Shoes",
+                "x".repeat(ProductBusiness.DESCRIPTION_MAX_LENGTH + 1));
+
+        assertThatThrownBy(() -> productBusiness.createProduct(request)).isInstanceOf(ValidationException.class);
+        verify(productService, never()).createProduct(any());
+    }
 }
