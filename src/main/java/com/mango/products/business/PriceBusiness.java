@@ -22,6 +22,8 @@ public class PriceBusiness {
 
     static final String DEFAULT_CURRENCY = "EUR";
     static final int MAX_DECIMALS = 2;
+    static final LocalDate MIN_DATE = LocalDate.of(1900, 1, 1);
+    static final LocalDate MAX_DATE = LocalDate.of(9999, 12, 31);
     static final BigDecimal MAX_PRICE_VALUE = new BigDecimal("1000000000");
 
     private final PriceService priceService;
@@ -57,6 +59,21 @@ public class PriceBusiness {
         return PriceMapper.toResponse(result);
     }
 
+    public PriceResponseDTO updatePrice(Long priceId, CreatePriceRequestDTO request) {
+        validateRequest(request);
+
+        PriceVO price = PriceMapper.toVOForUpdate(priceId, request);
+        if (price.getCurrency() == null) {
+            price.setCurrency(DEFAULT_CURRENCY);
+        }
+
+        return PriceMapper.toResponse(priceService.updatePrice(price));
+    }
+
+    public void deletePrice(Long priceId) {
+        priceService.deletePrice(priceId);
+    }
+
     private void validateRequest(CreatePriceRequestDTO request) {
         Validator.requireNotNull(request.getValue(), "value");
         Validator.requireNotNegative(request.getValue(), "value");
@@ -65,6 +82,8 @@ public class PriceBusiness {
         Validator.requireCurrencyCode(request.getCurrency(), "currency");
         Validator.requireNotNull(request.getInitDate(), "initDate");
         Validator.requireBefore(request.getInitDate(), request.getEndDate(), "initDate", "endDate");
+        Validator.requireDateBetween(request.getInitDate(), MIN_DATE, MAX_DATE, "initDate");
+        Validator.requireDateBetween(request.getEndDate(), MIN_DATE, MAX_DATE, "endDate");
     }
 
 }

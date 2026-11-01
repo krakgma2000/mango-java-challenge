@@ -48,9 +48,41 @@ public class PriceService {
         return priceRepository.findProductWithPrices(productId).map(PriceMapper::toVO);
     }
 
+    @Transactional
+    public PriceVO updatePrice(PriceVO price) {
+        Long productId = lockProductOfPrice(price.getId());
+        price.setProductId(productId);
+
+        priceRepository.findFirstOverlapping(productId, price.getInitDate(), price.getEndDate(), price.getId())
+                .ifPresent(existing -> {
+                    throw new ConflictException(buildOverlapMessage(existing));
+                });
+
+        if (!priceRepository.update(PriceMapper.toEntity(price))) {
+            throw new ValidationException("Price " + price.getId() + " does not exist");
+        }
+        return price;
+    }
+
+    @Transactional
+    public void deletePrice(Long priceId) {
+        lockProductOfPrice(priceId);
+
+        if (!priceRepository.deleteById(priceId)) {
+            throw new ValidationException("Price " + priceId + " does not exist");
+        }
+    }
+
     private static String buildOverlapMessage(PriceEntity existing) {
         String end = existing.getEndDate() == null ? "open" : existing.getEndDate().toString();
         return "The price overlaps with price " + existing.getId()
                 + " (" + existing.getInitDate() + " to " + end + ")";
+    }
+
+    private Long lockProductOfPrice(Long priceId) {
+        Long productId = priceRepository.findProductIdByPriceId(priceId)
+                .orElseThrow(() -> new ValidationException("Price " + priceId + " does not exist"));
+        productRepository.lockById(productId);
+        return productId;
     }
 }

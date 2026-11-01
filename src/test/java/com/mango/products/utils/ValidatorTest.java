@@ -130,4 +130,26 @@ class ValidatorTest {
         assertThatThrownBy(() -> Validator.requireBefore(day, day.minusDays(1), "initDate", "endDate"))
                 .isInstanceOf(ValidationException.class);
     }
+
+    @Test
+    void requireDateBetweenAcceptsTheLimitsAndNull() {
+        LocalDate min = LocalDate.of(1900, 1, 1);
+        LocalDate max = LocalDate.of(9999, 12, 31);
+        assertThatCode(() -> Validator.requireDateBetween(min, min, max, "initDate")).doesNotThrowAnyException();
+        assertThatCode(() -> Validator.requireDateBetween(max, min, max, "initDate")).doesNotThrowAnyException();
+        assertThatCode(() -> Validator.requireDateBetween(null, min, max, "endDate")).doesNotThrowAnyException();
+    }
+
+    @Test
+    void requireDateBetweenRejectsDatesOutsideTheRange() {
+        LocalDate min = LocalDate.of(1900, 1, 1);
+        LocalDate max = LocalDate.of(9999, 12, 31);
+        assertThatThrownBy(() -> Validator.requireDateBetween(LocalDate.of(1899, 12, 31), min, max, "initDate"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("initDate must be between 1900-01-01 and 9999-12-31");
+        assertThatThrownBy(() -> Validator.requireDateBetween(LocalDate.of(-5000, 1, 1), min, max, "initDate"))
+                .isInstanceOf(ValidationException.class);
+        assertThatThrownBy(() -> Validator.requireDateBetween(LocalDate.of(10000, 1, 1), min, max, "endDate"))
+                .isInstanceOf(ValidationException.class);
+    }
 }

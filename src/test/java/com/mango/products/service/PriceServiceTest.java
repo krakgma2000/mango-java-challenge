@@ -89,4 +89,95 @@ class PriceServiceTest {
                 .hasMessage("The price overlaps with price 5 (2024-03-01 to open)");
         verify(priceRepository, never()).save(any());
     }
+
+    // ---------- updatePrice ----------
+
+    private static PriceVO priceToUpdate() {
+        return new PriceVO(10L, null, new BigDecimal("150"), "EUR", JAN_1, JUN_30);
+    }
+
+    @Test
+    void updateLocksTheProductOfThePriceThenChecksOverlapsExcludingItselfThenUpdates() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(priceRepository.findFirstOverlapping(1L, JAN_1, JUN_30, 10L)).thenReturn(Optional.empty());
+        when(priceRepository.update(any())).thenReturn(true);
+
+        PriceVO updated = priceService.updatePrice(priceToUpdate());
+
+        assertThat(updated.getId()).isEqualTo(10L);
+        assertThat(updated.getProductId()).isEqualTo(1L);
+        InOrder order = inOrder(productRepository, priceRepository);
+        order.verify(priceRepository).findProductIdByPriceId(10L);
+        order.verify(productRepository).lockById(1L);
+        order.verify(priceRepository).findFirstOverlapping(1L, JAN_1, JUN_30, 10L);
+        order.verify(priceRepository).update(any());
+    }
+
+    @Test
+    void updateRejectsAPriceThatDoesNotExist() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> priceService.updatePrice(priceToUpdate()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Price 10 does not exist");
+        verify(productRepository, never()).lockById(any());
+        verify(priceRepository, never()).update(any());
+    }
+
+    @Test
+    void updateRejectsAnOverlapWithAnotherPrice() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(priceRepository.findFirstOverlapping(1L, JAN_1, JUN_30, 10L)).thenReturn(Optional.of(
+                new PriceEntity(11L, 1L, new BigDecimal("199.99"), "EUR", LocalDate.of(2024, 6, 1), null)));
+
+        assertThatThrownBy(() -> priceService.updatePrice(priceToUpdate()))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("The price overlaps with price 11 (2024-06-01 to open)");
+        verify(priceRepository, never()).update(any());
+    }
+
+    @Test
+    void updateRejectsAPriceDeletedWhileWaitingForTheLock() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(priceRepository.findFirstOverlapping(1L, JAN_1, JUN_30, 10L)).thenReturn(Optional.empty());
+        when(priceRepository.update(any())).thenReturn(false);
+
+        assertThatThrownBy(() -> priceService.updatePrice(priceToUpdate()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Price 10 does not exist");
+    }
+
+    // ---------- deletePrice ----------
+
+    @Test
+    void deleteLocksTheProductOfThePriceThenDeletes() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(priceRepository.deleteById(10L)).thenReturn(true);
+
+        priceService.deletePrice(10L);
+
+        InOrder order = inOrder(productRepository, priceRepository);
+        order.verify(productRepository).lockById(1L);
+        order.verify(priceRepository).deleteById(10L);
+    }
+
+    @Test
+    void deleteRejectsAPriceThatDoesNotExist() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> priceService.deletePrice(10L))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Price 10 does not exist");
+        verify(priceRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteRejectsAPriceDeletedWhileWaitingForTheLock() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(priceRepository.deleteById(10L)).thenReturn(false);
+
+        assertThatThrownBy(() -> priceService.deletePrice(10L))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Price 10 does not exist");
+    }
 }

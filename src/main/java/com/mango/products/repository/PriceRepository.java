@@ -50,16 +50,22 @@ public class PriceRepository {
     }
 
     public Optional<PriceEntity> findFirstOverlapping(Long productId, LocalDate initDate, LocalDate endDate) {
+        return findFirstOverlapping(productId, initDate, endDate, null);
+    }
+
+    public Optional<PriceEntity> findFirstOverlapping(Long productId, LocalDate initDate, LocalDate endDate, Long excludePriceId) {
         return jdbcClient.sql("""
                 SELECT id, product_id, value, currency, init_date, end_date
                 FROM prices
                 WHERE product_id = :productId
+                  AND id IS DISTINCT FROM CAST(:excludePriceId AS bigint)
                   AND daterange(init_date, end_date, '[]')
                       && daterange(CAST(:initDate AS date), CAST(:endDate AS date), '[]')
                 ORDER BY init_date
                 LIMIT 1
                 """)
                 .param("productId", productId)
+                .param("excludePriceId", excludePriceId)
                 .param("initDate", initDate)
                 .param("endDate", endDate)
                 .query((rs, rowNum) -> toPriceEntity(rs, "id"))
@@ -98,5 +104,32 @@ public class PriceRepository {
         BigDecimal value = rs.getBigDecimal("value");
         return new PriceEntity(rs.getLong(idColumn), rs.getLong("product_id"), value, rs.getString("currency"),
                 rs.getObject("init_date", LocalDate.class), rs.getObject("end_date", LocalDate.class));
+    }
+
+    public Optional<Long> findProductIdByPriceId(Long priceId) {
+        return jdbcClient.sql("SELECT product_id FROM prices WHERE id = :priceId")
+                .param("priceId", priceId)
+                .query(Long.class)
+                .optional();
+    }
+
+    public boolean update(PriceEntity price) {
+        return jdbcClient.sql("""
+                UPDATE prices
+                SET value = :value, currency = :currency, init_date = :initDate, end_date = :endDate
+                WHERE id = :id
+                """)
+                .param("id", price.getId())
+                .param("value", price.getValue())
+                .param("currency", price.getCurrency())
+                .param("initDate", price.getInitDate())
+                .param("endDate", price.getEndDate())
+                .update() > 0;
+    }
+
+    public boolean deleteById(Long priceId) {
+        return jdbcClient.sql("DELETE FROM prices WHERE id = :priceId")
+                .param("priceId", priceId)
+                .update() > 0;
     }
 }

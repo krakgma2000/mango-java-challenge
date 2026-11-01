@@ -4,9 +4,13 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,9 +37,7 @@ import com.mango.products.domain.ProductPricesResponseDTO;
 import com.mango.products.exceptions.ConflictException;
 import com.mango.products.exceptions.ValidationException;
 
-/**
- * Web layer only (no database): routes, JSON, status codes and the error handler.
- */
+
 @WebMvcTest(PriceController.class)
 class PriceControllerTest {
 
@@ -207,5 +209,78 @@ class PriceControllerTest {
         mockMvc.perform(get("/products/prices/history").param("productId", "1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.prices").isEmpty());
+    }
+
+    // ---------- PUT ----------
+
+    @Test
+    void updateReturns200WithThePrice() throws Exception {
+        when(priceBusiness.updatePrice(eq(10L), any()))
+                .thenReturn(new PriceResponseDTO(10L, new BigDecimal("150.00"), "EUR", JAN_1, null));
+
+        mockMvc.perform(put("/products/prices").param("priceId", "10")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"value\": 150, \"initDate\": \"2024-01-01\", \"endDate\": null}"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("""
+                        {"id": 10, "value": 150.00, "currency": "EUR", "initDate": "2024-01-01", "endDate": null}
+                        """, true));
+    }
+
+    @Test
+    void updateWithoutPriceIdReturns400() throws Exception {
+        mockMvc.perform(put("/products/prices")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"value\": 150, \"initDate\": \"2024-01-01\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Required parameter 'priceId' is not present."));
+    }
+
+    @Test
+    void updateOfAPriceThatDoesNotExistReturns400() throws Exception {
+        when(priceBusiness.updatePrice(eq(99L), any())).thenThrow(new ValidationException("Price 99 does not exist"));
+
+        mockMvc.perform(put("/products/prices").param("priceId", "99")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"value\": 150, \"initDate\": \"2024-01-01\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Price 99 does not exist"));
+    }
+
+    @Test
+    void updateThatOverlapsReturns409() throws Exception {
+        when(priceBusiness.updatePrice(eq(10L), any()))
+                .thenThrow(new ConflictException("The price overlaps with price 11 (2024-06-01 to open)"));
+
+        mockMvc.perform(put("/products/prices").param("priceId", "10")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"value\": 150, \"initDate\": \"2024-01-01\"}"))
+                .andExpect(status().isConflict());
+    }
+
+    // ---------- DELETE ----------
+
+    @Test
+    void deleteReturns204WithoutBody() throws Exception {
+        mockMvc.perform(delete("/products/prices").param("priceId", "10"))
+                .andExpect(status().isNoContent())
+                .andExpect(content().string(""));
+
+        verify(priceBusiness).deletePrice(10L);
+    }
+
+    @Test
+    void deleteOfAPriceThatDoesNotExistReturns400() throws Exception {
+        doThrow(new ValidationException("Price 99 does not exist")).when(priceBusiness).deletePrice(99L);
+
+        mockMvc.perform(delete("/products/prices").param("priceId", "99"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Price 99 does not exist"));
+    }
+
+    @Test
+    void deleteWithoutPriceIdReturns400() throws Exception {
+        mockMvc.perform(delete("/products/prices"))
+                .andExpect(status().isBadRequest());
     }
 }

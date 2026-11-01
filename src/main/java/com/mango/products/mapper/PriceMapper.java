@@ -51,4 +51,9 @@ public final class PriceMapper {
         List<PriceResponseDTO> prices = vo.getPrices().stream().map(PriceMapper::toResponse).toList();
         return new ProductPricesResponseDTO(product.getId(), product.getName(), product.getDescription(), prices);
     }
+
+    public static PriceVO toVOForUpdate(Long priceId, CreatePriceRequestDTO request) {
+        return new PriceVO(priceId, null, request.getValue(), request.getCurrency(),
+                request.getInitDate(), request.getEndDate());
+    }
 }

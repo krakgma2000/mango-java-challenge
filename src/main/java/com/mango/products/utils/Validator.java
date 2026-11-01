@@ -66,4 +66,10 @@ public final class Validator {
             throw new ValidationException(startField + " must be before " + endField);
         }
     }
+
+    public static void requireDateBetween(LocalDate value, LocalDate min, LocalDate max, String field) {
+        if (value != null && (value.isBefore(min) || value.isAfter(max))) {
+            throw new ValidationException(field + " must be between " + min + " and " + max);
+        }
+    }
 }

@@ -1,7 +1,6 @@
 package com.mango.products.utils;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.math.BigDecimal;
 
@@ -25,8 +24,9 @@ class MoneyTest {
         assertThat(Money.format(null)).isNull();
     }
 
-    @Test
-    void neverRoundsSilently() {
-        assertThatThrownBy(() -> Money.format(new BigDecimal("99.999"))).isInstanceOf(ArithmeticException.class);
+    @ParameterizedTest
+    @CsvSource({ "1.999, 2.00", "99.994, 99.99", "99.995, 100.00" })
+    void roundsAValueWithMoreThanTwoDecimalsInsteadOfFailing(String input, String expected) {
+        assertThat(Money.format(new BigDecimal(input)).toPlainString()).isEqualTo(expected);
     }
 }

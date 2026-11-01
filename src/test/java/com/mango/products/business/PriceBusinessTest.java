@@ -210,4 +210,50 @@ class PriceBusinessTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Product 99 does not exist");
     }
+
+    // ---------- date range ----------
+
+    @Test
+    void rejectsAnInitDateBeforeTheMinimum() {
+        assertRejected(request("1", null, LocalDate.of(-5000, 1, 1), null), "initDate must be between 1900-01-01 and 9999-12-31");
+    }
+
+    @Test
+    void rejectsAnEndDateAfterTheMaximum() {
+        assertRejected(request("1", null, JAN_1, LocalDate.of(300000, 1, 1)), "endDate must be between 1900-01-01 and 9999-12-31");
+    }
+
+    // ---------- updatePrice ----------
+
+    @Test
+    void updatesAPriceKeepingItsIdAndUsingTheDefaultCurrency() {
+        when(priceService.updatePrice(any()))
+                .thenReturn(new PriceVO(10L, 1L, new BigDecimal("150"), "EUR", JAN_1, null));
+
+        PriceResponseDTO response = priceBusiness.updatePrice(10L, request("150", null, JAN_1, null));
+
+        verify(priceService).updatePrice(priceCaptor.capture());
+        assertThat(priceCaptor.getValue().getId()).isEqualTo(10L);
+        assertThat(priceCaptor.getValue().getCurrency()).isEqualTo(PriceBusiness.DEFAULT_CURRENCY);
+        assertThat(response.getId()).isEqualTo(10L);
+        assertThat(response.getValue()).isEqualTo(new BigDecimal("150.00"));
+        assertThat(response.getEndDate()).isNull();
+    }
+
+    @Test
+    void updateValidatesLikeCreate() {
+        assertThatThrownBy(() -> priceBusiness.updatePrice(10L, request("1", null, JUN_30, JAN_1)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("initDate must be before endDate");
+        verify(priceService, never()).updatePrice(any());
+    }
+
+    // ---------- deletePrice ----------
+
+    @Test
+    void deleteDelegatesToTheService() {
+        priceBusiness.deletePrice(10L);
+
+        verify(priceService).deletePrice(10L);
+    }
 }
