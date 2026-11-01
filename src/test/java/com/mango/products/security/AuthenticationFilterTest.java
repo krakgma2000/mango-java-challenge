@@ -40,7 +40,12 @@ class AuthenticationFilterTest {
     }
 
     private static MockHttpServletRequest request(String path, String authorization) {
-        MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+        return request(path, path, authorization);
+    }
+
+    private static MockHttpServletRequest request(String rawUri, String normalizedPath, String authorization) {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", rawUri);
+        request.setServletPath(normalizedPath);
         if (authorization != null) {
             request.addHeader("Authorization", authorization);
         }
@@ -115,5 +120,26 @@ class AuthenticationFilterTest {
 
         assertThat(reachedTheController()).isTrue();
         assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    // ---------- path tricks: the filter decides on the normalized path ----------
+
+    @Test
+    void aRawPathThatLooksPublicButResolvesToAProtectedOneNeedsAToken() throws Exception {
+        filter.doFilter(request("/actuator/health/../../products/prices", "/products/prices", null), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(401);
+        assertThat(reachedTheController()).isFalse();
+    }
+
+    @Test
+    void theGrantIsCheckedOnTheNormalizedPath() throws Exception {
+        when(jwtService.validate("good")).thenReturn(Optional.of("mango_test"));
+        when(grantRegistry.isGranted("mango_test", "/admin")).thenReturn(false);
+
+        filter.doFilter(request("/products/../admin", "/admin", "Bearer good"), response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(403);
+        assertThat(reachedTheController()).isFalse();
     }
 }

@@ -39,8 +39,14 @@ public class AuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = normalizedPath(request);
         return PUBLIC_PATHS.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, path));
+    }
+
+    // The path as the container resolves it for routing: decoded, without "..", "//" or ";params".
+    static String normalizedPath(HttpServletRequest request) {
+        String pathInfo = request.getPathInfo();
+        return request.getServletPath() + (pathInfo == null ? "" : pathInfo);
     }
 
     @Override
@@ -59,7 +65,7 @@ public class AuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (!grantRegistry.isGranted(username.get(), request.getRequestURI())) {
+        if (!grantRegistry.isGranted(username.get(), normalizedPath(request))) {
             writeError(response, request, HttpStatus.FORBIDDEN, null, "Not allowed to access this endpoint");
             return;
         }

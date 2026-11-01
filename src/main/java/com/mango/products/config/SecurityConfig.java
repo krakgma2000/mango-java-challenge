@@ -12,7 +12,7 @@ import com.mango.products.security.AuthenticationFilter;
 import com.mango.products.security.GrantRegistry;
 import com.mango.products.security.JwtService;
 
-// Authentication without Spring Security: means one filter and a BCrypt encoder.
+// Authentication without Spring Security, meaning one filter and a BCrypt encoder.
 @Configuration
 public class SecurityConfig {
 

@@ -56,6 +56,10 @@ services:
       context: .
       dockerfile: Dockerfile.benchmark
     container_name: product-benchmark
+    environment:
+      API_USERNAME: ${API_USERNAME:-mango_test}
+      API_PASSWORD: ${API_PASSWORD:-} # Not in the repository: pass it when running `API_PASSWORD=... docker compose up`
+      CONCURRENCY: ${CONCURRENCY:-50}
     depends_on:
       - app
     command: sh -c "chmod +x /app/benchmark.sh && /app/benchmark.sh"
