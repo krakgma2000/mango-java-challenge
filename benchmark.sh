@@ -1,15 +1,16 @@
 #!/bin/bash
 #
-# Changes to the script given with the challenge:
-#   - Adapted to the API: login first and send the token on every request, product id as a query parameter, price history at /products/prices/history.
-#   - The product id is read with jq instead of grep (grep broke when "id" was the last field).
-# Proposals (marked PROPOSAL below):
-#   1. Readiness is polled every 0.5 s and the waiting time is printed.
-#   2. The functional part checks status codes AND values, ALSO stops at the first wrong answer.
-#   3. Load tests run with a bounded number of parallel requests (CONCURRENCY) instead of thousands of curl processes at once.
-#   4. Theyalso count the HTTP status codes
+# Benchmark of the products API, adapted from the script given with the challenge.
 #
-# Configuration (environment variables):
+# Changed for new API requirements (token sent after login, new endpoints, product id read with jq,...)
+#
+# Proposals (marked as PROPOSAL in the code):
+#   1. Wait for the API every 0.5 s, with a time limit.
+#   2. Check the status code and the value of every functional request.
+#   3. Load tests with a limited number of parallel requests.
+#   4. Load tests report the success rate and the successful requests per second.
+#
+# Environment variables:
 #   API_PASSWORD   password of the API user (required, it is not in the repository)
 #   API_USERNAME   default mango_test
 #   BASE_URL       default http://product-api:8080
@@ -26,7 +27,7 @@ if [ -z "$API_PASSWORD" ]; then
   exit 1
 fi
 
-# PROPOSAL 1: poll every 0.5 s (instead of 5 s), give up after MAX_WAIT seconds and print how long the API took to be ready
+# PROPOSAL 1
 MAX_WAIT="${MAX_WAIT:-180}"
 echo "Esperando a que la API esté lista en $HEALTH_ENDPOINT..."
 WAIT_START=$(date +%s.%N)
@@ -55,7 +56,7 @@ AUTH="Authorization: Bearer $TOKEN"
 echo "Logged in"
 echo -e "\n"
 
-# PROPOSAL 2: every functional request checks its status code and value (if necessary)
+# PROPOSAL 2
 FAILURES=0
 
 check() {
@@ -115,7 +116,7 @@ body "$RESPONSE"
 check "third price" 201 "$(status "$RESPONSE")"
 echo -e "\n"
 
-# PROPOSAL 3: a price that overlaps the open one must be rejected
+# PROPOSAL 2: a price that overlaps the open one must be rejected
 echo "Adding an overlapping price..."
 RESPONSE=$(request POST "$PRICES_URL" '{"value":1,"initDate":"2026-01-01"}')
 check "overlapping price is rejected" 409 "$(status "$RESPONSE")"
@@ -138,7 +139,7 @@ get_price "2024-08-15" "129.99"
 # Get current price
 get_price "2025-03-01" "199.99"
 
-# PROPOSAL 4: a date without price
+# PROPOSAL 2: a date without price
 echo "Getting price on a date without price..."
 RESPONSE=$(request GET "$PRICES_URL&date=2020-01-01")
 check "no price on 2020-01-01" 204 "$(status "$RESPONSE")"
@@ -162,7 +163,7 @@ echo "===================="
 echo "Concurrency: $CONCURRENCY parallel requests"
 echo -e "\n"
 
-# PROPOSAL 5 and 6:  parallelism and the status code of every request is counted.
+# PROPOSAL 3 and 4
 load_test() {
   local label=$1 total=$2 method=$3 url=$4 data=$5
   local codes
