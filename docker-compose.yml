@@ -29,7 +29,8 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
+      
+      dockerfile: ${APP_DOCKERFILE:-Dockerfile} # APP_DOCKERFILE=Dockerfile.jvm for the JVM version
     container_name: product-api
     ports:
       - "8080:8080"

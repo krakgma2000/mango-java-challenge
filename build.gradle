@@ -34,10 +34,17 @@ tasks.named('test') {
 	useJUnitPlatform()
 }
 
-tasks.named('jar') {
-	enabled = false
-}
-
+// Fixed name, so the Dockerfiles copy the jar by name. The plain jar stays enabled: the native image
+// build (nativeCompile) takes the application classes from it.
 tasks.named('bootJar') {
 	archiveFileName = 'mango-app.jar'
+}
+
+//Native image same name as the jar but built with ./gradlew nativeCompile
+graalvmNative {
+	binaries {
+		main {
+			imageName = 'mango-app'
+		}
+	}
 }

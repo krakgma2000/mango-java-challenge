@@ -29,7 +29,7 @@ fi
 
 # PROPOSAL 1
 MAX_WAIT="${MAX_WAIT:-180}"
-echo "Esperando a que la API esté lista en $HEALTH_ENDPOINT..."
+echo "Waiting for the API to be ready at $HEALTH_ENDPOINT..."
 WAIT_START=$(date +%s.%N)
 until curl -s "$HEALTH_ENDPOINT" | grep UP > /dev/null; do
   if [ "$(echo "$(date +%s.%N) - $WAIT_START > $MAX_WAIT" | bc)" -eq 1 ]; then
@@ -46,7 +46,8 @@ echo -e "\n"
 echo "Logging in as $API_USERNAME..."
 TOKEN=$(curl -s -X POST "$BASE_URL/auth/login" \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"$API_USERNAME\",\"password\":\"$API_PASSWORD\"}" | jq -r '.accessToken // empty')
+  -d "$(jq -n --arg username "$API_USERNAME" --arg password "$API_PASSWORD" '{username: $username, password: $password}')" \
+  | jq -r '.accessToken // empty')
 
 if [ -z "$TOKEN" ]; then
   echo "Error: login failed for user $API_USERNAME"
@@ -85,7 +86,7 @@ PRODUCT_ID=$(body "$RESPONSE" | jq -r '.id // empty')
 check "create product" 201 "$(status "$RESPONSE")"
 
 if [ -z "$PRODUCT_ID" ]; then
-  echo "Error: Could not extract product ID from response"
+  echo "Error: could not extract the product ID from the response"
   echo "Response: $(body "$RESPONSE")"
   exit 1
 fi
