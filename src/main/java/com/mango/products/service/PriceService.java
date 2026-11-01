@@ -82,7 +82,10 @@ public class PriceService {
     private Long lockProductOfPrice(Long priceId) {
         Long productId = priceRepository.findProductIdByPriceId(priceId)
                 .orElseThrow(() -> new ValidationException("Price " + priceId + " does not exist"));
-        productRepository.lockById(productId);
+        if (!productRepository.lockById(productId)
+                || priceRepository.findProductIdByPriceId(priceId).isEmpty()) {
+            throw new ValidationException("Price " + priceId + " does not exist");
+        }
         return productId;
     }
 }

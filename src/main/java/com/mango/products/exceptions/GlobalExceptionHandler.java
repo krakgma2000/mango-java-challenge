@@ -7,14 +7,24 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpHeaders;
 import java.sql.SQLException;
 import org.springframework.dao.DataIntegrityViolationException;
+import com.mango.products.exceptions.UnauthorizedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String EXCLUSION_VIOLATION = "23P01";
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ProblemDetail> handleUnauthorizedException(UnauthorizedException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .header(HttpHeaders.WWW_AUTHENTICATE, "Bearer")
+                .body(ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage()));
+    }
 
     @ExceptionHandler(ValidationException.class)
     public ProblemDetail handleValidationException(ValidationException ex) {

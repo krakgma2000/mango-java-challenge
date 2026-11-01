@@ -96,6 +96,7 @@ class PriceServiceTest {
     @Test
     void updateLocksTheProductOfThePriceThenChecksOverlapsExcludingItselfThenUpdates() {
         when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(productRepository.lockById(1L)).thenReturn(true);
         when(priceRepository.findFirstOverlapping(1L, JAN_1, JUN_30, 10L)).thenReturn(Optional.empty());
         when(priceRepository.update(any())).thenReturn(true);
 
@@ -124,6 +125,7 @@ class PriceServiceTest {
     @Test
     void updateRejectsAnOverlapWithAnotherPrice() {
         when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(productRepository.lockById(1L)).thenReturn(true);
         when(priceRepository.findFirstOverlapping(1L, JAN_1, JUN_30, 10L)).thenReturn(Optional.of(
                 new PriceEntity(11L, 1L, new BigDecimal("199.99"), "EUR", LocalDate.of(2024, 6, 1), null)));
 
@@ -136,6 +138,7 @@ class PriceServiceTest {
     @Test
     void updateRejectsAPriceDeletedWhileWaitingForTheLock() {
         when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(productRepository.lockById(1L)).thenReturn(true);
         when(priceRepository.findFirstOverlapping(1L, JAN_1, JUN_30, 10L)).thenReturn(Optional.empty());
         when(priceRepository.update(any())).thenReturn(false);
 
@@ -149,6 +152,7 @@ class PriceServiceTest {
     @Test
     void deleteLocksTheProductOfThePriceThenDeletes() {
         when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(productRepository.lockById(1L)).thenReturn(true);
         when(priceRepository.deleteById(10L)).thenReturn(true);
 
         priceService.deletePrice(10L);
@@ -171,10 +175,36 @@ class PriceServiceTest {
     @Test
     void deleteRejectsAPriceDeletedWhileWaitingForTheLock() {
         when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L));
+        when(productRepository.lockById(1L)).thenReturn(true);
         when(priceRepository.deleteById(10L)).thenReturn(false);
 
         assertThatThrownBy(() -> priceService.deletePrice(10L))
                 .isInstanceOf(ValidationException.class)
                 .hasMessage("Price 10 does not exist");
+    }
+
+    // ---------- price deleted while waiting for the lock ----------
+
+    @Test
+    void updateRejectsAPriceDeletedWhileWaitingForTheLockBeforeCheckingOverlaps() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L), Optional.empty());
+        when(productRepository.lockById(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> priceService.updatePrice(priceToUpdate()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Price 10 does not exist");
+        verify(priceRepository, never()).findFirstOverlapping(any(), any(), any(), any());
+        verify(priceRepository, never()).update(any());
+    }
+
+    @Test
+    void deleteRejectsAPriceDeletedWhileWaitingForTheLockBeforeDeleting() {
+        when(priceRepository.findProductIdByPriceId(10L)).thenReturn(Optional.of(1L), Optional.empty());
+        when(productRepository.lockById(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> priceService.deletePrice(10L))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage("Price 10 does not exist");
+        verify(priceRepository, never()).deleteById(any());
     }
 }

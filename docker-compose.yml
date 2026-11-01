@@ -38,7 +38,7 @@ services:
       DB_USER: products_app
       DB_PASSWORD: products_app
       TZ: Europe/Madrid
-      JWT_SECRET: ${JWT_SECRET:-change-me-dev-only}
+      JWT_SECRET: ${JWT_SECRET:-PIKtcwMz8XtYTZhLKiVsCv3PtMzTATSu7BnpMfg4rUk}
     depends_on:
       db:
         condition: service_healthy
